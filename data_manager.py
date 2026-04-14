@@ -28,10 +28,11 @@ def extract_target_data(df, target_indices, target_cols):
         text_parts = []     # 生のデータ（ファイル名や画面表示用）
         reading_parts = []  # 音声化するデータ（助詞付き）
         
-        # 特殊チェック1：対象の行の「動作」列に文字が入力されているか
+        # 特殊チェック1：対象の行の「動作」列に文字が入力されているか（全列から探す）
         has_action = False
-        if "動作" in target_cols and "動作" in df.columns:
-            action_item = row["動作"]
+        action_col = next((c for c in df.columns if c == "動作"), None)
+        if action_col:
+            action_item = row[action_col]
             if not pd.isna(action_item) and str(action_item).strip():
                 has_action = True
                 

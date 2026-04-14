@@ -1,8 +1,8 @@
 import ui_manager
 import data_manager
-import audio_manager
+from audio_manager_onnx import AudioManagerONNX
 
-CSV_FILE = 'kokoro_test.csv'
+CSV_FILE = 'test.csv'
 
 def main():
     # ターミナルの文字化け対策
@@ -26,7 +26,8 @@ def main():
     
     # 4. 音声の生成と保存
     try:
-        audio_manager.generate_and_save_audio(processing_data, output_mode)
+        manager = AudioManagerONNX()
+        manager.generate_and_save(processing_data, output_mode)
     except Exception as e:
         print(f"エラーが発生しました: {e}")
 

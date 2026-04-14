@@ -3,3 +3,23 @@ __pycache__/
 *.wav
 kokoro/
 taihi/
+
+# Huge Models (exceed GitHub 100MB limit)
+model.onnx
+model_slim.onnx
+
+# Data and Samples (exclude potential sensitive info)
+*.csv
+!kokoro_test.csv
+
+# Temporary and Meta Files (including Windows alternate data streams)
+*Zone.Identifier
+*.data
+check_db.py
+quantize_model.py
+test_speed.py
+benchmark_onnx.py
+debug_onnx_data.py
+test_onnx_inference.py
+sym_shape_infer_temp.onnx
+f8671889-370c-11f1-9094-00155d2af888.data

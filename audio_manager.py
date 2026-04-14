@@ -1,9 +1,10 @@
 import os
-import json
+import db_manager
 import numpy as np
 import soundfile as sf
 import re
-import subprocess  # ★ 追加：Windowsの機能を呼び出すためのライブラリ
+import subprocess
+import time  # ★追加機能：時間を計測するためのライブラリ
 from kokoro import KPipeline
 from text_processor import apply_rules
 
@@ -22,8 +23,8 @@ def generate_and_save_audio(processing_data, output_mode):
     
     pipeline = KPipeline(lang_code='j', repo_id='hexgrad/Kokoro-82M', device='cpu')
     
-    with open('rules.json', 'r', encoding='utf-8-sig') as f:
-        rules = json.load(f)
+    db_manager.init_db()
+    rules = db_manager.load_all_rules()
         
     combined_audio = []
     row_silence = np.zeros(int(SAMPLE_RATE * 2.0))
@@ -31,8 +32,12 @@ def generate_and_save_audio(processing_data, output_mode):
     print("\n" + "="*60)
     print("【音声生成を開始します】")
     print("="*60)
+    
+    total_computation_time = 0.0  # ★追加: 全体の変換合計時間を記録する箱
 
     for item in processing_data:
+        row_start_time = time.time()  # ★追加: この行の変換処理のスタート時刻
+        
         index = item['row_index']
         text_parts = item['text_parts']
         reading_parts = item['reading_parts']
@@ -76,19 +81,23 @@ def generate_and_save_audio(processing_data, output_mode):
             
         # 波形データが正常に作られていれば、再生および保存を行う
         if len(single_audio) > 0:
+            
+            # ★追加: スピーカーを鳴らす前に「純粋なAI変換時間」を計算
+            row_end_time = time.time()
+            row_duration = row_end_time - row_start_time
+            total_computation_time += row_duration  # 合計に足す
+            print(f"  ⏱ 純粋なAI変換時間: {row_duration:.2f} 秒")
+            
             # ★ WSL用の裏技：一時ファイルに保存してWindowsのPowerShell経由で強引に鳴らす
             print("  🎵 スピーカーで再生中 (Windowsバックグラウンド経由)...")
             temp_wav = os.path.abspath(os.path.join(OUTPUT_DIR, f"temp_play_{index}.wav"))
             sf.write(temp_wav, single_audio, SAMPLE_RATE)
             try:
-                # WSLのLinuxパスをWindowsのパス（\\wsl.localhost\...）に変換
                 win_path = subprocess.check_output(['wslpath', '-w', temp_wav]).decode().strip()
-                # Windows標準のメディアプレイヤー機能を使ってPlaySync（終わるまで待機）で鳴らす
                 subprocess.run(['powershell.exe', '-c', f'(New-Object Media.SoundPlayer "{win_path}").PlaySync()'])
             except Exception as e:
                 print(f"  ⚠️ 再生エラー: {e}")
             
-            # 再生が終わったら一時ファイルをこっそり削除しておく
             if os.path.exists(temp_wav):
                 os.remove(temp_wav)
             
@@ -104,6 +113,10 @@ def generate_and_save_audio(processing_data, output_mode):
                 
                 sf.write(out_filename, single_audio, SAMPLE_RATE)
                 print(f"  ➔ 保存完了 [{out_filename}]")
+
+    print("\n" + "="*60)
+    print(f"⏱ 全データの総AI変換時間: {total_computation_time:.2f} 秒")
+    print("="*60)
 
     if output_mode == '1' and combined_audio:
         output_file = os.path.join(OUTPUT_DIR, 'data_test_results.wav')
